@@ -1,8 +1,8 @@
 import { useState, useEffect, useContext } from 'react';
-import axios from 'axios';
+import API from '../api';
 import { AuthContext } from '../context/AuthContext';
 import { toast } from 'react-toastify';
-import { User, Mail, Calendar, Loader2 } from 'lucide-react';
+import { User, Mail, Calendar, Loader2, ArrowUpDown } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
 const Profile = () => {
@@ -10,7 +10,7 @@ const Profile = () => {
     const [attendingEvents, setAttendingEvents] = useState([]);
     const [createdEvents, setCreatedEvents] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [sortOrder, setSortOrder] = useState('asc');
+    const [sortOrder, setSortOrder] = useState('desc'); // desc for newest first
     const { token, user } = useContext(AuthContext);
 
     useEffect(() => {
@@ -24,7 +24,9 @@ const Profile = () => {
     const loadData = async () => {
         try {
             const profileData = await fetchProfile();
-            await fetchUserEvents(profileData);
+            if (profileData) {
+                await fetchUserEvents(profileData);
+            }
         } catch (error) {
             console.error('Error loading data:', error);
             toast.error('Failed to load profile data');
@@ -34,33 +36,47 @@ const Profile = () => {
     };
 
     const fetchProfile = async () => {
-        const response = await axios.get('/api/auth/profile', {
-            headers: { 'x-auth-token': token }
-        });
-        if (!response.data) {
-            throw new Error('Profile not found');
+        try {
+            const response = await API.get('/auth/profile', {
+                headers: { 'x-auth-token': token }
+            });
+            if (response.data) {
+                setProfile(response.data);
+                return response.data;
+            } else {
+                throw new Error('Profile not found');
+            }
+        } catch (error) {
+            throw error;
         }
-        setProfile(response.data);
-        return response.data;
     };
 
     const fetchUserEvents = async (profileData) => {
-        const [allEventsResponse, createdEventsResponse] = await Promise.all([
-            axios.get('/api/events'),
-            axios.get('/api/events/my-events', {
-                headers: { 'x-auth-token': token }
-            })
-        ]);
+        try {
+            const [allEventsResponse, createdEventsResponse] = await Promise.all([
+                API.get('/events'),
+                API.get('/events/my-events', {
+                    headers: { 'x-auth-token': token }
+                })
+            ]);
 
-        const allEvents = allEventsResponse.data;
-        const userCreatedEvents = createdEventsResponse.data;
+            const allEvents = allEventsResponse.data || [];
+            const userCreatedEvents = createdEventsResponse.data || [];
 
-        const userAttendingEvents = allEvents.filter(event =>
-            event && event.attendees && event.attendees.some(att => att.toString() === profileData._id)
-        );
+            const userAttendingEvents = allEvents.filter(event =>
+                event && event.attendees && Array.isArray(event.attendees) && event.attendees.some(att => att && att.toString() === profileData._id)
+            );
 
-        setAttendingEvents(userAttendingEvents);
-        setCreatedEvents(userCreatedEvents);
+            setAttendingEvents(userAttendingEvents);
+            setCreatedEvents(userCreatedEvents);
+        } catch (error) {
+            console.error('Error fetching events:', error);
+            toast.error('Failed to load events');
+        }
+    };
+
+    const toggleSortOrder = () => {
+        setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
     };
 
     if (loading) {
@@ -74,7 +90,7 @@ const Profile = () => {
     if (!profile) {
         return (
             <div className="min-h-screen flex items-center justify-center">
-                <p className="text-gray-300 dark:text-gray-300">Error loading profile. Please try again.</p>
+                <p className="text-gray-600 dark:text-gray-300">Error loading profile. Please try again.</p>
             </div>
         );
     }
@@ -82,6 +98,14 @@ const Profile = () => {
     if (!user || !token) {
         return <Navigate to="/login" />;
     }
+
+    const sortedAttendingEvents = [...attendingEvents].sort((a, b) =>
+        sortOrder === 'asc' ? new Date(a.date) - new Date(b.date) : new Date(b.date) - new Date(a.date)
+    );
+
+    const sortedCreatedEvents = [...createdEvents].sort((a, b) =>
+        sortOrder === 'asc' ? new Date(a.date) - new Date(b.date) : new Date(b.date) - new Date(a.date)
+    );
 
     return (
         <div className="max-w-2xl mx-auto px-4 py-8">
@@ -126,25 +150,27 @@ const Profile = () => {
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xl font-bold text-gray-900 dark:text-white">My Events</h2>
                         <button
-                            onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                            className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition"
+                            onClick={toggleSortOrder}
+                            className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition flex items-center space-x-2"
                         >
-                            Sort by Date ({sortOrder === 'asc' ? 'Oldest First' : 'Newest First'})
+                            <ArrowUpDown size={16} />
+                            <span>Sort by Date ({sortOrder === 'asc' ? 'Oldest First' : 'Newest First'})</span>
                         </button>
                     </div>
 
                     <div className="bg-gray-200 dark:bg-gray-700 rounded-lg p-4 mb-4">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Attending</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Attending ({attendingEvents.length})</h3>
                         {attendingEvents.length === 0 ? (
                             <p className="text-gray-600 dark:text-gray-300 text-sm">You are not attending any events.</p>
                         ) : (
                             <ul className="space-y-2">
-                                {[...attendingEvents].sort((a, b) => sortOrder === 'asc' ? new Date(a.date) - new Date(b.date) : new Date(b.date) - new Date(a.date)).map(event => (
+                                {sortedAttendingEvents.map(event => (
                                     <li key={event._id} className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
                                         <h4 className="text-md font-medium text-gray-900 dark:text-white">{event.title}</h4>
                                         <p className="text-gray-600 dark:text-gray-300 text-sm">
                                             {new Date(event.date).toLocaleString()}
                                         </p>
+                                        <p className="text-gray-600 dark:text-gray-300 text-sm">{event.location}</p>
                                     </li>
                                 ))}
                             </ul>
@@ -152,17 +178,18 @@ const Profile = () => {
                     </div>
 
                     <div className="bg-gray-200 dark:bg-gray-700 rounded-lg p-4">
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Created</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Created ({createdEvents.length})</h3>
                         {createdEvents.length === 0 ? (
                             <p className="text-gray-600 dark:text-gray-300 text-sm">You have not created any events.</p>
                         ) : (
                             <ul className="space-y-2">
-                                {[...createdEvents].sort((a, b) => sortOrder === 'asc' ? new Date(a.date) - new Date(b.date) : new Date(b.date) - new Date(a.date)).map(event => (
+                                {sortedCreatedEvents.map(event => (
                                     <li key={event._id} className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
                                         <h4 className="text-md font-medium text-gray-900 dark:text-white">{event.title}</h4>
                                         <p className="text-gray-600 dark:text-gray-300 text-sm">
                                             {new Date(event.date).toLocaleString()}
                                         </p>
+                                        <p className="text-gray-600 dark:text-gray-300 text-sm">{event.location}</p>
                                     </li>
                                 ))}
                             </ul>

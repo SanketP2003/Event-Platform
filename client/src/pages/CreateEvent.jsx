@@ -1,5 +1,5 @@
 import { useState, useContext } from 'react';
-import axios from 'axios';
+import API from '../api';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -30,7 +30,7 @@ const CreateEvent = () => {
         if (!validateForm()) return;
         setLoading(true);
         try {
-            await axios.post('/api/events', formData, {
+            await API.post('/events', formData, {
                 headers: { 'x-auth-token': token }
             });
             toast.success('Event created successfully!');

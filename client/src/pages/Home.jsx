@@ -1,5 +1,5 @@
 import { useEffect, useState, useContext } from 'react';
-import axios from 'axios';
+import API from '../api';
 import { AuthContext } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 import { MapPin, Calendar, Users, Loader2 } from 'lucide-react';
@@ -18,7 +18,7 @@ const Home = () => {
 
     const fetchEvents = async () => {
         try {
-            const res = await axios.get('/api/events');
+            const res = await API.get('/events');
             console.log('Fetched events:', res.data);
             setEvents(res.data);
         } catch (error) {
@@ -32,7 +32,7 @@ const Home = () => {
     const handleRSVP = async (eventId) => {
         if (!token) return toast.error('Please login to RSVP');
         try {
-            await axios.post(`/api/events/rsvp/${eventId}`, {}, {
+            await API.post(`/events/rsvp/${eventId}`, {}, {
                 headers: { 'x-auth-token': token }
             });
             toast.success('RSVP Successful!');
@@ -44,7 +44,7 @@ const Home = () => {
 
     const handleLeave = async (eventId) => {
         try {
-            await axios.delete(`/api/events/rsvp/${eventId}`, {
+            await API.delete(`/events/rsvp/${eventId}`, {
                 headers: { 'x-auth-token': token }
             });
             toast.success('Left event successfully');
@@ -61,7 +61,7 @@ const Home = () => {
     const handleDelete = async (eventId) => {
         if (!token) return toast.error('Please login to delete an event');
         try {
-            await axios.delete(`/api/events/${eventId}`, {
+            await API.delete(`/events/${eventId}`, {
                 headers: { 'x-auth-token': token }
             });
             toast.success('Event deleted successfully');
@@ -112,7 +112,7 @@ const Home = () => {
                             className="w-full p-3 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-500 border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                         />
                     </div>
-                    <div className="flex space-x-2">
+                    <div className="flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-2">
                         <select
                             value={selectedCategory}
                             onChange={(e) => setSelectedCategory(e.target.value)}
@@ -125,14 +125,26 @@ const Home = () => {
                             <option value="Technology">Technology</option>
                             <option value="Sports">Sports</option>
                         </select>
-                        <select
-                            value={sortBy}
-                            onChange={(e) => setSortBy(e.target.value)}
-                            className="p-3 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                        <button
+                            onClick={() => setSortBy('date')}
+                            className={`p-3 rounded-lg border transition-all ${
+                                sortBy === 'date'
+                                    ? 'bg-indigo-500 text-white border-indigo-500'
+                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'
+                            }`}
                         >
-                            <option value="date">Sort by Date</option>
-                            <option value="popularity">Sort by Popularity</option>
-                        </select>
+                            Sort by Date
+                        </button>
+                        <button
+                            onClick={() => setSortBy('popularity')}
+                            className={`p-3 rounded-lg border transition-all ${
+                                sortBy === 'popularity'
+                                    ? 'bg-indigo-500 text-white border-indigo-500'
+                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'
+                            }`}
+                        >
+                            Sort by Popularity
+                        </button>
                     </div>
                 </div>
             </div>

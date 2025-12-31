@@ -1,7 +1,7 @@
 import { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import axios from 'axios';
+import API from '../api';
 import { toast } from 'react-toastify';
 import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 
@@ -26,7 +26,7 @@ const Login = () => {
         if (!validateForm()) return;
         setLoading(true);
         try {
-            const res = await axios.post('/api/auth/login', formData);
+            const res = await API.post('/auth/login', formData);
             login(res.data.user, res.data.token);
             toast.success('Welcome back!');
             navigate('/');

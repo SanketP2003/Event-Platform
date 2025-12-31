@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import axios from 'axios';
+import API from '../api';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { User, Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
@@ -26,7 +26,7 @@ const Register = () => {
         if (!validateForm()) return;
         setLoading(true);
         try {
-            await axios.post('/api/auth/register', formData);
+            await API.post('/auth/register', formData);
             toast.success('Account created successfully! Please log in.');
             navigate('/login');
         } catch (err) {
